@@ -1,28 +1,49 @@
 #!/usr/bin/python3
-"""NBMultinomial
+""" Classifier.py
 
-    NBMultinomi is a python script that performs the Naive Bayes' Text Classification on given set of data. It is created for partial fullfillment of assignment #1 of the SENG474: Data Mining course.
 
-    Try to be as generic as possible to work on most cases.
+Classifier is a class that encapsulates the machine learning classification strategies by returning
+a model object that learn from train set to predict the outcomes of test set. It may also report the
+accuracy of its predictions.
 
-    Specified data formats to be accepted?
-    Sys.path corrections.
-    full commetings.
-    TODO!!
+As of now, Classifier only supports Naive Baye's Classification - in particular, text classification.
 
-    Usages:
 
-        ./nbClassifier -traindata file1.txt -trainlabels file2.txt -testdata file3.txt -testlabels file4.txt
+Usage:
+
+    from Classifier import NBClassifier
+
+    myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
+    myClassifier.setTrainData(pathToTrainData, pathToTrainLabel)
+    ...
+
 
 Author: fmoon
 
 """
 
-"""TODO:
-    * Divide between main.py and Classifier object.
-    * The instance of Classifier provides the capabilities of the classification.
-    * Instantiate. Set train/label. Generate model.
-    * Once ready. Perform the
+""" TODO:
+
+[] Finish file handling
+[] Pre-data processing
+[] Design scope of methods - which should be open? closed?
+[] Internal structure - how abstract? treat as all attributes then decide on class?
+[] A model (Classifier) is expected to:
+    - train on given data set
+    - predict on given data set
+    - compute accuracy of previous computation
+"""
+
+""" Notes:
+
+Refactor later on # of values that class attribute can hold: for now, it is binary.
+The assignment input format is the de facto format to accept. Single CSV file should be easier to work
+with but w/e, this is fine as well. For now, implement as if we have a seperate label text.
+
+Per each class value, we need the dictionary.
+Identify the what variables we require. TotalDocNum, ClassAttr, and so on.
+
+
 """
 import os
 
@@ -50,37 +71,30 @@ class NBClassifier(object):
 
 
     def setTrainData(self, trainData="", trainLabel=""):
-
-
         print('But this is inherited none-the-less')
 
 
 
 class Bernouli(NBClassifier):
 
-    def saySomething(self):
-        print('I am Bernouli!')
+
+
+
 
 class Multinomial(NBClassifier):
 
-    def saySomething(self):
-        print('I am Multinomial!')
 
 
 
 def main():
-    """ used for testing purposes only for now """
-    print('NBClassifier for SENG 474')
+    """ small testing purposes only """
 
     # print(os.getcwd())
     trainData = os.getcwd() + '/traindata.txt'
     trainLabels = os.getcwd() + '/trainlabels.txt'
 
     print(trainData, trainLabels)
-    myClassifier = NBClassifier.create(BERNOULI)
-    myClassifier.saySomething()
-    pass
-
+    myClassifier = NBClassifier.new(MODE_BERNOULI)
 
 
 if __name__ == '__main__':

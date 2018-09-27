@@ -1,10 +1,5 @@
 #!/usr/bin/python
-""" unit test for Classifier.py
-
-
-Author: fmoon
-
-"""
+""" unit test for Classifier.py """
 
 from Classifier import NBClassifier
 
@@ -14,8 +9,16 @@ class Test(unittest.TestCase):
 
     def test_construct_classifier(self):
         """ does classifiers return expected objects? """
-        myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
-        assert not myClassifier == None
-        myClassifier.saySomething()
 
-Test().test_construct_classifier()
+        # 1. Testing Bernouli & Multinomial Models
+        myClassifier_Bernouli = NBClassifier.new(NBClassifier.MODE_BERNOULI)
+        myClassifier_Multinomial = NBClassifier.new(NBClassifier.MODE_MULTINOMIAL)
+        assert not myClassifier_Bernouli == None and not myClassifier_Multinomial == None
+        assert 'Bernouli' in myClassifier_Bernouli.__repr__() and 'Multinomial' in myClassifier_Multinomial.__repr__()
+
+
+
+
+
+if __name__ == '__main__':
+    unittest.main()
