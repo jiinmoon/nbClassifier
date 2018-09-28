@@ -45,9 +45,14 @@ Identify the what variables we require. TotalDocNum, ClassAttr, and so on.
 
 
 """
+
+import numpy as np
+
 import os
 
 
+# c can be any values in C. There should be a mapping :: such that internally, we work with integer mapped to c.
+# But for now, assume the binary classification (c or not c). We will abstract it out later.
 
 class NBClassifier(object):
     MODE_BERNOULI = 0
@@ -67,22 +72,105 @@ class NBClassifier(object):
         with open(filePath) as f:
             fileContent = f.read()
         f.close()
-        return fileContent
+        return fileContent.strip()
+
+    def _count_word_frequency(self, data):
+        _dict = {}
+        for _docs in data:
+            for _word in _docs:
+                if _word in _dict:
+                    _dict[_word] += 1
+                else:
+                    _dict[_word] = 1
+        return _dict
+
+    def _computeCondProb(testData, classValue):
+        """ skip alpha - irrelevant
+
+        Suppose classValue = 1
+
+        We need following terms:
+            P(c)
+            P(t|c) for each t in the testData.
+            for t in testData:
+                _probTgivenC *= ( (frequencyDictC1[t] + 1) / (sizeWords1 + sizeVocabulary) )
+
+
+        """
+
+        pass
 
 
     def setTrainData(self, trainData="", trainLabel=""):
-        print('But this is inherited none-the-less')
+        """
+        Args:
+            trainData(str): absolute path to train data file
+            trainLabel(str): absolute path to train label file
 
+        Returns:
+            bool: true if accepted; false otherwise.
+
+        """
+
+        trainDataDump = self._read_file(trainData)
+        trainLabelDump = self._read_file(trainLabel)
+
+        print('Train Data: {}'.format(trainDataDump))
+        print('Train Label: {}'.format(trainLabelDump))
+
+        #print([(x.split(' '), int(y)) for x, y in zip(trainDataDump.split('\n'), trainLabelDump.split('\n'))])
+        #print([x.split(' ') for x in trainDataDump.split('\n')])
+
+        trainData = np.array([x.split(' ') for x in trainDataDump.split('\n')])
+        trainLabel = np.array([int(y) for y in trainLabelDump.split('\n')])
+        #print(trainData)
+        #print(trainLabel)
+        print(trainData[trainLabel == 1])
+        print(trainData[trainLabel == 0])
+        #print(list(zip(list(trainDataDump.split('\n'), list(trainLabelDump.split('\n')))))
+
+        trainData1 = trainData[trainLabel == 1]
+        trainData0 = trainData[trainLabel == 0]
+        print(len(trainData1), len(trainData0))
+
+        totalNumDocuments = len(trainData1) + len(trainData0)
+        print(totalNumDocuments)
+
+        frequencyDictC1 = self._count_word_frequency(trainData1)
+        frequencyDictC0 = self._count_word_frequency(trainData0)
+        print(frequencyDictC1, frequencyDictC0)
+
+        sizeWords1 = sum(frequencyDictC1.values())
+        sizeWords0 = sum(frequencyDictC0.values())
+        sizeVocabulary = len(set(frequencyDictC1).union(set(frequencyDictC0)))
+        print(sizeWords1, sizeWords0, sizeVocabulary)
+
+    def predict(self, testData=[]):
+        """ testData is a list of words.
+
+        This is a prediction of singluar case, that is where does d classifies under?
+
+        Abstractly, we compute P(c | d) for ea c in C (in this case only two cases: c or not c).
+        Then, we choose max val amongst them and report corresponding c.
+
+        P(c|d) = alpha * P(c) * productSum(P(t|c) for all t in d)
+
+        """
+        C = [1, 0]
+        result = []
+        for classValue in C:
+            result.append(_computeCondProb(testData, classValue))
+        return max(result)
 
 
 class Bernouli(NBClassifier):
-
+    pass
 
 
 
 
 class Multinomial(NBClassifier):
-
+    pass
 
 
 
@@ -90,12 +178,15 @@ def main():
     """ small testing purposes only """
 
     # print(os.getcwd())
-    trainData = os.getcwd() + '/traindata.txt'
-    trainLabels = os.getcwd() + '/trainlabels.txt'
+    #trainData = os.getcwd() + '/traindata.txt'
+    #trainLabels = os.getcwd() + '/trainlabels.txt'
+
+    trainData = os.getcwd() + '/toyData.txt'
+    trainLabels = os.getcwd() + '/toyLabel.txt'
 
     print(trainData, trainLabels)
-    myClassifier = NBClassifier.new(MODE_BERNOULI)
-
+    myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
+    myClassifier.setTrainData(trainData, trainLabels)
 
 if __name__ == '__main__':
     main()
