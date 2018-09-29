@@ -24,7 +24,7 @@ Author: fmoon
 
 """ TODO:
 
-[] Finish file handling
+[x] Finish file handling
 [] Pre-data processing
 [] Design scope of methods - which should be open? closed?
 [] Internal structure - how abstract? treat as all attributes then decide on class?
@@ -57,6 +57,11 @@ import os
 class NBClassifier(object):
     MODE_BERNOULI = 0
     MODE_MULTINOMIAL = 1
+
+    _frequencyDict0 = {}
+    _frequencyDict1 = {}
+    _sizeVocabulary = 0
+    _totalTrainDocs = 0
 
     @staticmethod
     def new(arg):
@@ -95,14 +100,22 @@ class NBClassifier(object):
             for t in testData:
                 _probTgivenC *= ( (frequencyDictC1[t] + 1) / (sizeWords1 + sizeVocabulary) )
 
-
         """
 
         pass
 
 
     def setTrainData(self, trainData="", trainLabel=""):
-        """
+        """ preprocessing on the train data.
+
+        Opens the train data files and parses to componenets that are required
+        for further computations down the line.
+
+        It will populate following attributes:
+            totalNumberDocuments (int)
+            frequencyDictionaries {t: frequency of t}
+            sizeOfVocabulary (int)
+
         Args:
             trainData(str): absolute path to train data file
             trainLabel(str): absolute path to train label file
@@ -115,8 +128,8 @@ class NBClassifier(object):
         trainDataDump = self._read_file(trainData)
         trainLabelDump = self._read_file(trainLabel)
 
-        print('Train Data: {}'.format(trainDataDump))
-        print('Train Label: {}'.format(trainLabelDump))
+        #print('Train Data: {}'.format(trainDataDump))
+        #print('Train Label: {}'.format(trainLabelDump))
 
         #print([(x.split(' '), int(y)) for x, y in zip(trainDataDump.split('\n'), trainLabelDump.split('\n'))])
         #print([x.split(' ') for x in trainDataDump.split('\n')])
@@ -125,25 +138,27 @@ class NBClassifier(object):
         trainLabel = np.array([int(y) for y in trainLabelDump.split('\n')])
         #print(trainData)
         #print(trainLabel)
-        print(trainData[trainLabel == 1])
-        print(trainData[trainLabel == 0])
+        #print(trainData[trainLabel == 1])
+        #print(trainData[trainLabel == 0])
         #print(list(zip(list(trainDataDump.split('\n'), list(trainLabelDump.split('\n')))))
 
         trainData1 = trainData[trainLabel == 1]
         trainData0 = trainData[trainLabel == 0]
-        print(len(trainData1), len(trainData0))
+        #print(len(trainData1), len(trainData0))
 
-        totalNumDocuments = len(trainData1) + len(trainData0)
-        print(totalNumDocuments)
+        self._totalTrainDocs = len(trainData1) + len(trainData0)
+        #print(self._totalTrainDocs)
 
-        frequencyDictC1 = self._count_word_frequency(trainData1)
-        frequencyDictC0 = self._count_word_frequency(trainData0)
-        print(frequencyDictC1, frequencyDictC0)
+        self._frequencyDict1 = self._count_word_frequency(trainData1)
+        self._frequencyDict0 = self._count_word_frequency(trainData0)
+        #print(self._frequencyDict1, self._frequencyDict0)
 
-        sizeWords1 = sum(frequencyDictC1.values())
-        sizeWords0 = sum(frequencyDictC0.values())
-        sizeVocabulary = len(set(frequencyDictC1).union(set(frequencyDictC0)))
-        print(sizeWords1, sizeWords0, sizeVocabulary)
+        sizeWords1 = sum(self._frequencyDict1.values())
+        sizeWords0 = sum(self._frequencyDict0.values())
+        self._sizeVocabulary = len(
+                set(self._frequencyDict1).union(
+                    set(self._frequencyDict0)))
+        #print(sizeWords1, sizeWords0, self._sizeVocabulary)
 
     def predict(self, testData=[]):
         """ testData is a list of words.
@@ -161,6 +176,20 @@ class NBClassifier(object):
         for classValue in C:
             result.append(_computeCondProb(testData, classValue))
         return max(result)
+
+    def __str__(self):
+        formatter = """ Train Data Information:
+            \tfrequencyDict1: {}
+            \tfreqeuncyDict0: {}
+            \ttotalTrainDocs: {}
+            \tsizeVocabulary: {}
+            """
+
+        return formatter.format(
+                self._frequencyDict1,
+                self._frequencyDict0,
+                self._totalTrainDocs,
+                self._sizeVocabulary)
 
 
 class Bernouli(NBClassifier):
@@ -187,6 +216,8 @@ def main():
     print(trainData, trainLabels)
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
     myClassifier.setTrainData(trainData, trainLabels)
+    print(myClassifier)
+
 
 if __name__ == '__main__':
     main()
