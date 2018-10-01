@@ -52,7 +52,6 @@ with but w/e, this is fine as well. For now, implement as if we have a seperate 
 Per each class value, we need the dictionary.
 Identify the what variables we require. TotalDocNum, ClassAttr, and so on.
 
-
 """
 import numpy as np
 
@@ -77,6 +76,9 @@ class NBClassifier(object):
     _classAttrs = {}
     _totalTrainDocs = 0
     _sizeOfVocabulary = 0
+
+    _predictions = []
+    _testLabels = []
 
     @staticmethod
     def new(arg):
@@ -117,9 +119,9 @@ class NBClassifier(object):
                 _probTgivenC *= ( (frequencyDictC1[t] + 1) / (sizeWords1 + sizeVocabulary) )
 
         also include P(c) for P(c|d) computation
-        """
 
-        print(f'{testData}')
+        """
+        #print(f'{testData}')
         classAttrObj = self._classAttrs[classValue]
 
         frequencyDict = classAttrObj.frequencyDict
@@ -128,7 +130,7 @@ class NBClassifier(object):
         for word in testData:
             result *= ((frequencyDict.get(word, 0) + 1) / (sum(frequencyDict.values()) + self._sizeOfVocabulary))
 
-        print(f'P(c|d) = {result}')
+        #print(f'P(c|d) = {result}')
         return result
 
 
@@ -136,22 +138,14 @@ class NBClassifier(object):
         """ preprocessing on the train data.
 
         Opens the train data files and parses to componenets that are required
-        for further computations down the line.
-
-        It will populate following attributes:
-            totalNumberDocuments (int)
-            frequencyDictionaries {t: frequency of t}
-            sizeOfVocabulary (int)
+        for further computations down the line. Then, class attribute objects
+        are created per each label and populates the necessary terms.
 
         Args:
             trainData(str): absolute path to train data file
             trainLabel(str): absolute path to train label file
 
-        Returns:
-            bool: true if accepted; false otherwise.
-
         """
-
         # 1. Read train data set from given file paths
         trainDataDump = self._read_file(trainData)
         trainLabelDump = self._read_file(trainLabel)
@@ -185,22 +179,43 @@ class NBClassifier(object):
             newClassAttrObj.totalDocsInClass = totalTrainDocsInClass
 
     def predict(self, testData=[]):
-        """ testData is a list of words.
+        """ predicts a singular case of test data.
 
-        This is a prediction of singluar case, that is where does d classifies under?
+        Args:
+            testData(list(str)): list of words to classify the data.
 
-        Abstractly, we compute P(c | d) for ea c in C (in this case only two cases: c or not c).
-        Then, we choose max val amongst them and report corresponding c.
-
-        P(c|d) = alpha * P(c) * productSum(P(t|c) for all t in d)
+        Returns:
+            str: the most likely predicted label computed.
 
         """
         result = []
         for classValue in self._classAttrs:
-            print(f'Computing Label: {classValue}, {self._classLabelMap[classValue]}')
+            #print(f'Computing Label: {classValue}, {self._classLabelMap[classValue]}')
             result.append(self._computeCondProb(testData, classValue))
-        print(max(result))
         return self._classLabelMap[result.index(max(result))]
+
+    def predictSet(self, testData=""):
+        """ predicts entire set of test data.
+
+        Args:
+            testData(str): absolute path to test data in text format.
+
+        Returns:
+            list(str): predictions of each given docs in ordered sequence.
+
+        """
+        rawTestDataDump = self._read_file(testData)
+        formattedTestData = [line.split(' ') for line in rawTestDataDump.split('\n')]
+        for test in formattedTestData:
+            self._predictions.append(self.predict(test))
+        return self._predictions
+
+    def reportAccuracy(self, testLabels=""):
+        assert len(self._predictions) > 0
+        rawTestLabelDump = self._read_file(testLabels)
+        formattedTestLabels = [line for line in rawTestLabelDump.split('\n')]
+        corrects = [1 for x in zip(self._predictions, formattedTestLabels) if x[0] == x[1]]
+        return (len(corrects) / len(self._predictions)) * 100
 
     # Need to be fixed
     def __str__(self):
@@ -231,21 +246,28 @@ def main():
     """ small testing purposes only """
 
     # print(os.getcwd())
-    #trainData = os.getcwd() + '/traindata.txt'
-    #trainLabels = os.getcwd() + '/trainlabels.txt'
+    trainData = os.getcwd() + '/traindata.txt'
+    trainLabels = os.getcwd() + '/trainlabels.txt'
+    testData = os.getcwd() + '/traindata.txt'
+    testLabels = os.getcwd() + '/trainlabels.txt'
 
-    trainData = os.getcwd() + '/toyData.txt'
-    trainLabels = os.getcwd() + '/toyLabel.txt'
+    #trainData = os.getcwd() + '/toyData.txt'
+    #trainLabels = os.getcwd() + '/toyLabel.txt'
+    #testData = os.getcwd() +'/toyTestData.txt'
+    #testLabels = os.getcwd() + '/toyTestLabel.txt'
 
     #print(trainData, trainLabels)
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
     myClassifier.setTrainData(trainData, trainLabels)
     #print(myClassifier)
 
-    testData = ['Chinese', 'Chinese', 'Chinese', 'Tokyo', 'Japan']
-    prediction = myClassifier.predict(testData)
-    print(f'{testData} >>> {prediction}')
+    #singleTestData = ['Chinese', 'Chinese', 'Chinese', 'Tokyo', 'Japan']
+    #prediction = myClassifier.predict(singleTestData)
+    #print(f'{singleTestData} >>> {prediction}')
+    predictions = myClassifier.predictSet(testData)
+    accuracy = myClassifier.reportAccuracy(testLabels)
 
+    print(accuracy)
 
 if __name__ == '__main__':
     main()
