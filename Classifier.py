@@ -14,43 +14,30 @@ Usage:
 
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
     myClassifier.setTrainData(pathToTrainData, pathToTrainLabel)
+    myClassifier.predictSet(pathToTestData)
+    myClassifier.reportAccuracy(pathToTestLabel)
     ...
-
-
-Author: fmoon
 
 """
 
 """ TODO:
 
 [x] Finish file handling
-[] Pre-data processing
-[] Design scope of methods - which should be open? closed?
-[] Internal structure - how abstract? treat as all attributes then decide on class?
-[] A model (Classifier) is expected to:
-    - train on given data set
-    - predict on given data set
-    - compute accuracy of previous computation
-[] Split the single model into Bernouli and Multinomial
-    - Implement as Multinomial first.
-    - Identify common methods and extract override methods specific to
-    each classifier model.
-[] Think about creating an attribute class that holds values.
-    - especially for class attribute will help a lot.
-    - if such, we will have to ask user for which attribute is the class attribute.
-        - we won't since in this particular instance, we are getting it seperately as
-        trainLabel.txt
+[x] Pre-data processing
+[x] Implement Multinomial
+[] Implement Bernouli
+[] Argparse
+[] Switch input formats
+[] PyDocs
+[] Travis
 
 """
 
 """ Notes:
 
-Refactor later on # of values that class attribute can hold: for now, it is binary.
-The assignment input format is the de facto format to accept. Single CSV file should be easier to work
-with but w/e, this is fine as well. For now, implement as if we have a seperate label text.
-
-Per each class value, we need the dictionary.
-Identify the what variables we require. TotalDocNum, ClassAttr, and so on.
+- Multinomial implemented by default
+- Override the computation functions in each respective classses.
+    - Bernouli needs to be implemented
 
 """
 import numpy as np
@@ -58,30 +45,30 @@ import numpy as np
 import os
 
 
-# c can be any values in C. There should be a mapping :: such that internally, we work with integer mapped to c.
-# But for now, assume the binary classification (c or not c). We will abstract it out later.
 class NBClassifier(object):
+    """ NBClassifier is the Naive Bayes' Classifier for Text Classification purposes. """
+    # Operating Mode :: Currently operates on MULTINOMIAL
     MODE_BERNOULI = 0
     MODE_MULTINOMIAL = 1
 
-    # when reading, classifiy labels
     class ClassAttr(object):
+        """ individual class attributes retain own frequency dicts and sizes. """
         frequencyDict = {}
         totalDocsInClass = 0
 
         def __init__(self, label):
             pass
 
-    _classLabelMap = []
-    _classAttrs = {}
-    _totalTrainDocs = 0
-    _sizeOfVocabulary = 0
-
+    _classLabelMap = [] # internal class values to index mapping.
+    _classAttrs = {} # list of all class attributes
+    _totalTrainDocs = 0 # total number of training documents
+    _sizeOfVocabulary = 0 # total number of words within training set
     _predictions = []
     _testLabels = []
 
     @staticmethod
     def new(arg):
+        """ factory method for initialization of NBClassifier. """
         if arg == 0:
             return Bernouli()
         elif arg == 1:
@@ -90,12 +77,30 @@ class NBClassifier(object):
             raise AssertionError("Cannot create classifier with given arg: {}".format(arg))
 
     def _read_file(self, filePath):
+        """ opens file and read the file at given path.
+
+        Args:
+            filePath(str): absolute path to the file.
+
+        Returns:
+            str: data dump of given file (with both ends stripped)
+
+        """
         with open(filePath) as f:
             fileContent = f.read()
         f.close()
         return fileContent.strip()
 
     def _count_word_frequency(self, data):
+        """ counts the frequency of words within the data.
+
+        Args:
+            data(list([str])): list of documents which is comprised of ['word1', 'word2', 'word3', ... ]
+
+        Returns:
+            dict: dictionary where {key = 'word', value = number of occurrences}
+
+        """
         _dict = {}
         for _docs in data:
             for _word in _docs:
@@ -106,31 +111,27 @@ class NBClassifier(object):
         return _dict
 
     def _computeCondProb(self, testData, classValue):
-        """ Multinomial by default.
+        """ computes conditional probabilty based on given test data.
 
-        skip alpha - irrelevant
+        It is implemented to use Multinomial formulae by default (needs refactor). The computation skips the
+        alpha calculation.
 
-        Suppose classValue = 1
+        Args:
+            testData(list(str)): test data set in the format of ['word1', 'word2', 'word3', ... ]
+            classValue(int): indicator of class label
 
-        We need following terms:
-            P(c)
-            P(t|c) for each t in the testData.
-            for t in testData:
-                _probTgivenC *= ( (frequencyDictC1[t] + 1) / (sizeWords1 + sizeVocabulary) )
-
-        also include P(c) for P(c|d) computation
+        Returns:
+            float: P(T|c): the probability of given test data belong under classValue (w/o alpha)
 
         """
-        #print(f'{testData}')
         classAttrObj = self._classAttrs[classValue]
-
         frequencyDict = classAttrObj.frequencyDict
         totalDocsInClass = classAttrObj.totalDocsInClass
-        result = totalDocsInClass/self._totalTrainDocs
+
+        result = (totalDocsInClass/self._totalTrainDocs) # P(c)
+        # Compute P(t|c) for each t in d
         for word in testData:
             result *= ((frequencyDict.get(word, 0) + 1) / (sum(frequencyDict.values()) + self._sizeOfVocabulary))
-
-        #print(f'P(c|d) = {result}')
         return result
 
 
@@ -140,6 +141,9 @@ class NBClassifier(object):
         Opens the train data files and parses to componenets that are required
         for further computations down the line. Then, class attribute objects
         are created per each label and populates the necessary terms.
+
+        TODO:
+            Should implement assert or fail indicator for setting train data.
 
         Args:
             trainData(str): absolute path to train data file
@@ -211,29 +215,25 @@ class NBClassifier(object):
         return self._predictions
 
     def reportAccuracy(self, testLabels=""):
+        """ computes accurracy of predictions against the given test labels.
+
+        Args:
+            testLabels(str): absolute path to test label file.
+
+        Returns:
+            float: percentage accuracy of prediction.
+
+        """
         assert len(self._predictions) > 0
         rawTestLabelDump = self._read_file(testLabels)
         formattedTestLabels = [line for line in rawTestLabelDump.split('\n')]
         corrects = [1 for x in zip(self._predictions, formattedTestLabels) if x[0] == x[1]]
         return (len(corrects) / len(self._predictions)) * 100
 
-    # Need to be fixed
-    def __str__(self):
-        formatter = """ Train Data Information:
-            \tfrequencyDict1: {}
-            \tfreqeuncyDict0: {}
-            \ttotalTrainDocs: {}
-            \tsizeVocabulary: {}
-            """
-
-        return formatter.format(self._frequencyDict1, self._frequencyDict0,
-                    self._totalTrainDocs, self._sizeVocabulary)
-
 
 class Bernouli(NBClassifier):
     """ Not used. """
     pass
-
 
 
 class Multinomial(NBClassifier):
@@ -243,18 +243,21 @@ class Multinomial(NBClassifier):
 
 
 def main():
-    """ small testing purposes only """
+    """ only use for quick testing purpose """
 
-    # print(os.getcwd())
-    trainData = os.getcwd() + '/traindata.txt'
-    trainLabels = os.getcwd() + '/trainlabels.txt'
-    testData = os.getcwd() + '/traindata.txt'
-    testLabels = os.getcwd() + '/trainlabels.txt'
+    trainData = os.getcwd() + '/data/traindata.txt'
+    trainLabels = os.getcwd() + '/data/trainlabels.txt'
 
-    #trainData = os.getcwd() + '/toyData.txt'
-    #trainLabels = os.getcwd() + '/toyLabel.txt'
-    #testData = os.getcwd() +'/toyTestData.txt'
-    #testLabels = os.getcwd() + '/toyTestLabel.txt'
+    #testData = os.getcwd() + '/data/traindata.txt'
+    #testLabels = os.getcwd() + '/data/trainlabels.txt'
+
+    testData = os.getcwd() + '/data/testdata.txt'
+    testLabels = os.getcwd() + '/data/testlabels.txt'
+
+    #trainData = os.getcwd() + '/data/toyData.txt'
+    #trainLabels = os.getcwd() + '/data/toyLabel.txt'
+    #testData = os.getcwd() +'/data/toyTestData.txt'
+    #testLabels = os.getcwd() + '/data/toyTestLabel.txt'
 
     #print(trainData, trainLabels)
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
@@ -267,6 +270,7 @@ def main():
     predictions = myClassifier.predictSet(testData)
     accuracy = myClassifier.reportAccuracy(testLabels)
 
+    #print(predictions)
     print(accuracy)
 
 if __name__ == '__main__':
