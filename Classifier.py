@@ -65,16 +65,21 @@ class NBClassifier(object):
     MODE_BERNOULI = 0
     MODE_MULTINOMIAL = 1
 
-    _frequencyDict0 = {}
-    _frequencyDict1 = {}
-    _totalTrain0 = 0
-    _totalTrain1 = 0
-    _sizeVocabulary = 0
+    # when reading, classifiy labels
+    class ClassAttr(object):
+        frequencyDict = {}
+        totalDocsInClass = 0
+
+        def __init__(self, label):
+            pass
+
+    _classLabelMap = []
+    _classAttrs = {}
     _totalTrainDocs = 0
+    _sizeOfVocabulary = 0
 
     @staticmethod
     def new(arg):
-        """ Factory method for instantiating the NBClassifier. """
         if arg == 0:
             return Bernouli()
         elif arg == 1:
@@ -115,12 +120,13 @@ class NBClassifier(object):
         """
 
         print(f'{testData}')
-        frequencyDict = self._frequencyDict1 if classValue else self._frequencyDict0
-        totalTrainC = self._totalTrain1 if classValue else self._totalTrain0
-        result = totalTrainC/self._totalTrainDocs
+        classAttrObj = self._classAttrs[classValue]
+
+        frequencyDict = classAttrObj.frequencyDict
+        totalDocsInClass = classAttrObj.totalDocsInClass
+        result = totalDocsInClass/self._totalTrainDocs
         for word in testData:
-            print(f'Computing P({word}|c)')
-            result *= ((frequencyDict.get(word, 0) + 1) / (sum(frequencyDict.values()) + self._sizeVocabulary))
+            result *= ((frequencyDict.get(word, 0) + 1) / (sum(frequencyDict.values()) + self._sizeOfVocabulary))
 
         print(f'P(c|d) = {result}')
         return result
@@ -146,46 +152,37 @@ class NBClassifier(object):
 
         """
 
-        # Identify the unique labels.
-        # Create class_attr obj per each unique labels.
-        # it will hold all data necessary for computation.
-
+        # 1. Read train data set from given file paths
         trainDataDump = self._read_file(trainData)
         trainLabelDump = self._read_file(trainLabel)
 
-        #print('Train Data: {}'.format(trainDataDump))
-        #print('Train Label: {}'.format(trainLabelDump))
+        # 2. Format train data and labels into list of words
+        trainFormattedData = np.array([line.split(' ') for line in trainDataDump.split('\n')])
+        trainFormattedLabels = np.array([label for label in trainLabelDump.split('\n')])
 
-        #print([(x.split(' '), int(y)) for x, y in zip(trainDataDump.split('\n'), trainLabelDump.split('\n'))])
-        #print([x.split(' ') for x in trainDataDump.split('\n')])
+        # 3. Compute total unique words over all docs
+        uniqueWords = set()
+        for line in trainFormattedData:
+            for w in line:
+                uniqueWords.add(w)
+        self._sizeOfVocabulary = len(uniqueWords)
 
-        trainData = np.array([x.split(' ') for x in trainDataDump.split('\n')])
-        trainLabel = np.array([int(y) for y in trainLabelDump.split('\n')])
-        #print(trainData)
-        #print(trainLabel)
-        #print(trainData[trainLabel == 1])
-        #print(trainData[trainLabel == 0])
-        #print(list(zip(list(trainDataDump.split('\n'), list(trainLabelDump.split('\n')))))
-
-        trainData1 = trainData[trainLabel == 1]
-        trainData0 = trainData[trainLabel == 0]
-        #print(len(trainData1), len(trainData0))
-
-        self._totalTrain0 = len(trainData0)
-        self._totalTrain1 = len(trainData1)
-        self._totalTrainDocs = len(trainData1) + len(trainData0)
-        #print(self._totalTrainDocs)
-
-        self._frequencyDict1 = self._count_word_frequency(trainData1)
-        self._frequencyDict0 = self._count_word_frequency(trainData0)
-        #print(self._frequencyDict1, self._frequencyDict0)
-
-        sizeWords1 = sum(self._frequencyDict1.values())
-        sizeWords0 = sum(self._frequencyDict0.values())
-        self._sizeVocabulary = len(
-                set(self._frequencyDict1).union(
-                    set(self._frequencyDict0)))
-        #print(sizeWords1, sizeWords0, self._sizeVocabulary)
+        # 4. Instantiate classAttr object for each label
+        for index, label in enumerate(set(trainFormattedLabels)):
+            self._classLabelMap.append(label)
+            # Distinguish only those that belong under the label
+            trainDataInClass = trainFormattedData[[i == label for i in trainFormattedLabels]]
+            # Size of total documents belong under the label
+            totalTrainDocsInClass = len(trainDataInClass)
+            # Update the total documents
+            self._totalTrainDocs += totalTrainDocsInClass
+            # Count the frequency (possibly replaced with Collections.Counter)
+            frequencyDict = self._count_word_frequency(trainDataInClass)
+            # Create new ClassAtr and set it.
+            newClassAttrObj = NBClassifier.ClassAttr(label)
+            self._classAttrs[index] = newClassAttrObj
+            newClassAttrObj.frequencyDict = frequencyDict
+            newClassAttrObj.totalDocsInClass = totalTrainDocsInClass
 
     def predict(self, testData=[]):
         """ testData is a list of words.
@@ -198,12 +195,14 @@ class NBClassifier(object):
         P(c|d) = alpha * P(c) * productSum(P(t|c) for all t in d)
 
         """
-        C = [1, 0]
         result = []
-        for classValue in C:
+        for classValue in self._classAttrs:
+            print(f'Computing Label: {classValue}, {self._classLabelMap[classValue]}')
             result.append(self._computeCondProb(testData, classValue))
-        return max(result)
+        print(max(result))
+        return self._classLabelMap[result.index(max(result))]
 
+    # Need to be fixed
     def __str__(self):
         formatter = """ Train Data Information:
             \tfrequencyDict1: {}
@@ -238,10 +237,10 @@ def main():
     trainData = os.getcwd() + '/toyData.txt'
     trainLabels = os.getcwd() + '/toyLabel.txt'
 
-    print(trainData, trainLabels)
+    #print(trainData, trainLabels)
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
     myClassifier.setTrainData(trainData, trainLabels)
-    print(myClassifier)
+    #print(myClassifier)
 
     testData = ['Chinese', 'Chinese', 'Chinese', 'Tokyo', 'Japan']
     prediction = myClassifier.predict(testData)
