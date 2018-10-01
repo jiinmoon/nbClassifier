@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 """ Classifier.py
 
-
 Classifier is a class that encapsulates the machine learning classification strategies by returning
 a model object that learn from train set to predict the outcomes of test set. It may also report the
 accuracy of its predictions.
@@ -32,6 +31,16 @@ Author: fmoon
     - train on given data set
     - predict on given data set
     - compute accuracy of previous computation
+[] Split the single model into Bernouli and Multinomial
+    - Implement as Multinomial first.
+    - Identify common methods and extract override methods specific to
+    each classifier model.
+[] Think about creating an attribute class that holds values.
+    - especially for class attribute will help a lot.
+    - if such, we will have to ask user for which attribute is the class attribute.
+        - we won't since in this particular instance, we are getting it seperately as
+        trainLabel.txt
+
 """
 
 """ Notes:
@@ -45,7 +54,6 @@ Identify the what variables we require. TotalDocNum, ClassAttr, and so on.
 
 
 """
-
 import numpy as np
 
 import os
@@ -53,13 +61,14 @@ import os
 
 # c can be any values in C. There should be a mapping :: such that internally, we work with integer mapped to c.
 # But for now, assume the binary classification (c or not c). We will abstract it out later.
-
 class NBClassifier(object):
     MODE_BERNOULI = 0
     MODE_MULTINOMIAL = 1
 
     _frequencyDict0 = {}
     _frequencyDict1 = {}
+    _totalTrain0 = 0
+    _totalTrain1 = 0
     _sizeVocabulary = 0
     _totalTrainDocs = 0
 
@@ -89,8 +98,10 @@ class NBClassifier(object):
                     _dict[_word] = 1
         return _dict
 
-    def _computeCondProb(testData, classValue):
-        """ skip alpha - irrelevant
+    def _computeCondProb(self, testData, classValue):
+        """ Multinomial by default.
+
+        skip alpha - irrelevant
 
         Suppose classValue = 1
 
@@ -100,9 +111,19 @@ class NBClassifier(object):
             for t in testData:
                 _probTgivenC *= ( (frequencyDictC1[t] + 1) / (sizeWords1 + sizeVocabulary) )
 
+        also include P(c) for P(c|d) computation
         """
 
-        pass
+        print(f'{testData}')
+        frequencyDict = self._frequencyDict1 if classValue else self._frequencyDict0
+        totalTrainC = self._totalTrain1 if classValue else self._totalTrain0
+        result = totalTrainC/self._totalTrainDocs
+        for word in testData:
+            print(f'Computing P({word}|c)')
+            result *= ((frequencyDict.get(word, 0) + 1) / (sum(frequencyDict.values()) + self._sizeVocabulary))
+
+        print(f'P(c|d) = {result}')
+        return result
 
 
     def setTrainData(self, trainData="", trainLabel=""):
@@ -125,6 +146,10 @@ class NBClassifier(object):
 
         """
 
+        # Identify the unique labels.
+        # Create class_attr obj per each unique labels.
+        # it will hold all data necessary for computation.
+
         trainDataDump = self._read_file(trainData)
         trainLabelDump = self._read_file(trainLabel)
 
@@ -146,6 +171,8 @@ class NBClassifier(object):
         trainData0 = trainData[trainLabel == 0]
         #print(len(trainData1), len(trainData0))
 
+        self._totalTrain0 = len(trainData0)
+        self._totalTrain1 = len(trainData1)
         self._totalTrainDocs = len(trainData1) + len(trainData0)
         #print(self._totalTrainDocs)
 
@@ -174,7 +201,7 @@ class NBClassifier(object):
         C = [1, 0]
         result = []
         for classValue in C:
-            result.append(_computeCondProb(testData, classValue))
+            result.append(self._computeCondProb(testData, classValue))
         return max(result)
 
     def __str__(self):
@@ -185,20 +212,18 @@ class NBClassifier(object):
             \tsizeVocabulary: {}
             """
 
-        return formatter.format(
-                self._frequencyDict1,
-                self._frequencyDict0,
-                self._totalTrainDocs,
-                self._sizeVocabulary)
+        return formatter.format(self._frequencyDict1, self._frequencyDict0,
+                    self._totalTrainDocs, self._sizeVocabulary)
 
 
 class Bernouli(NBClassifier):
+    """ Not used. """
     pass
 
 
 
-
 class Multinomial(NBClassifier):
+    """ Not used. """
     pass
 
 
@@ -217,6 +242,10 @@ def main():
     myClassifier = NBClassifier.new(NBClassifier.MODE_BERNOULI)
     myClassifier.setTrainData(trainData, trainLabels)
     print(myClassifier)
+
+    testData = ['Chinese', 'Chinese', 'Chinese', 'Tokyo', 'Japan']
+    prediction = myClassifier.predict(testData)
+    print(f'{testData} >>> {prediction}')
 
 
 if __name__ == '__main__':
